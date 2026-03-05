@@ -6,26 +6,27 @@ pipeline {
     stages {
         stage('Prepare') {
             steps {
-                // Instala PyInstaller e pytest localmente
-                sh 'python3 -m pip install --user pyinstaller pytest'
+                // Criar um ambiente virtual isolado no workspace
+                sh 'python3 -m venv venv'
 
-                // Adiciona o PATH para que o Jenkins encontre os binários instalados em --user
-                sh 'export PATH=$HOME/.local/bin:$PATH'
+                // Ativar o venv e instalar pacotes necessários
+                sh '. venv/bin/activate && pip install --upgrade pip pytest pyinstaller'
 
-                // Cria pastas necessárias e limpa builds antigos
+                // Criar pastas necessárias e limpar builds antigos
                 sh 'mkdir -p test-reports'
                 sh 'rm -rf dist/* build/* __pycache__'
             }
         }
         stage('Build') {
             steps {
-                sh 'python3 -m py_compile sources/add2vals.py sources/calc.py'
+                // Compilar os scripts Python dentro do venv
+                sh '. venv/bin/activate && python -m py_compile sources/add2vals.py sources/calc.py'
             }
         }
         stage('Test') {
             steps {
-                // Usa pytest em vez de py.test
-                sh 'pytest --verbose --junit-xml test-reports/results.xml sources/test_calc.py'
+                // Rodar os testes com pytest dentro do venv
+                sh '. venv/bin/activate && pytest --verbose --junit-xml test-reports/results.xml sources/test_calc.py'
             }
             post {
                 always {
@@ -35,7 +36,8 @@ pipeline {
         }
         stage('Deliver') {
             steps {
-                sh 'pyinstaller --onefile sources/add2vals.py'
+                // Gerar executável com PyInstaller dentro do venv
+                sh '. venv/bin/activate && pyinstaller --onefile sources/add2vals.py'
             }
             post {
                 success {
